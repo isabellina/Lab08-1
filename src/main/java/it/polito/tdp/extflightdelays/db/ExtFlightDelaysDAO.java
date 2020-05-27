@@ -7,9 +7,11 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import it.polito.tdp.extflightdelays.model.Airline;
 import it.polito.tdp.extflightdelays.model.Airport;
+import it.polito.tdp.extflightdelays.model.Arco;
 import it.polito.tdp.extflightdelays.model.Flight;
 
 public class ExtFlightDelaysDAO {
@@ -37,9 +39,9 @@ public class ExtFlightDelaysDAO {
 		}
 	}
 
-	public List<Airport> loadAllAirports() {
+	public void loadAllAirports(Map<Integer,Airport> idMap) {
 		String sql = "SELECT * FROM airports";
-		List<Airport> result = new ArrayList<Airport>();
+		
 
 		try {
 			Connection conn = ConnectDB.getConnection();
@@ -47,14 +49,15 @@ public class ExtFlightDelaysDAO {
 			ResultSet rs = st.executeQuery();
 
 			while (rs.next()) {
+				if(!idMap.containsKey(rs.getInt("ID"))) {
 				Airport airport = new Airport(rs.getInt("ID"), rs.getString("IATA_CODE"), rs.getString("AIRPORT"),
 						rs.getString("CITY"), rs.getString("STATE"), rs.getString("COUNTRY"), rs.getDouble("LATITUDE"),
 						rs.getDouble("LONGITUDE"), rs.getDouble("TIMEZONE_OFFSET"));
-				result.add(airport);
-			}
-
+				idMap.put(rs.getInt("ID"), airport) ;
+			 }
+		 	}
 			conn.close();
-			return result;
+			
 
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -90,5 +93,33 @@ public class ExtFlightDelaysDAO {
 			System.out.println("Errore connessione al database");
 			throw new RuntimeException("Error Connection Database");
 		}
+	}
+	
+	
+	public List<Arco> getArchi(){
+		String sql = "select f1.ORIGIN_AIRPORT_ID as p, f2.DESTINATION_AIRPORT_ID as a, avg(f1.DISTANCE) as peso " + 
+				"from flights as f1, flights as f2 " + 
+				"where f1.ID = f2.ID and f1.`ORIGIN_AIRPORT_ID` <> f2.`DESTINATION_AIRPORT_ID` " + 
+				"group by f1.`ORIGIN_AIRPORT_ID`, f2.`DESTINATION_AIRPORT_ID` ";
+		List<Arco> archi = new LinkedList<Arco>();
+		
+		try {
+			Connection conn = ConnectDB.getConnection();
+			PreparedStatement st = conn.prepareStatement(sql);
+			ResultSet rs = st.executeQuery();
+			
+			while(rs.next()) {
+				Arco a = new Arco(rs.getInt("p"), rs.getInt("a"),rs.getDouble("peso"));
+				archi.add(a);
+			}
+			conn.close();
+			return archi;
+			
+		}
+		catch(SQLException e) {
+			e.printStackTrace();
+		}
+		
+		return null;
 	}
 }
